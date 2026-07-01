@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Business Clock — Time Tracker</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --panel: #1e293b;
+    --panel-2: #263449;
+    --border: #334155;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --accent: #38bdf8;
+    --green: #22c55e;
+    --amber: #f59e0b;
+    --red: #ef4444;
+    --shadow: 0 10px 30px rgba(0,0,0,.35);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+  }
+  header {
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--panel);
+  }
+  header h1 { font-size: 20px; margin: 0; font-weight: 650; }
+  header .sub { color: var(--muted); font-size: 13px; margin-left: auto; }
+  .wrap { max-width: 960px; margin: 0 auto; padding: 24px; }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 22px;
+    box-shadow: var(--shadow);
+    margin-bottom: 22px;
+  }
+  .clock {
+    font-size: 56px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 1px;
+    text-align: center;
+    margin: 8px 0 4px;
+  }
+  .status {
+    text-align: center;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--muted);
+    margin-bottom: 18px;
+  }
+  .status.running { color: var(--green); }
+  .status.paused { color: var(--amber); }
+  .task-input {
+    width: 100%;
+    padding: 12px 14px;
+    font-size: 15px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--panel-2);
+    color: var(--text);
+    margin-bottom: 16px;
+  }
+  .task-input:focus { outline: none; border-color: var(--accent); }
+  .task-input:disabled { opacity: .7; }
+  .btns { display: flex; gap: 12px; flex-wrap: wrap; }
+  button {
+    flex: 1;
+    min-width: 110px;
+    padding: 14px 16px;
+    font-size: 15px;
+    font-weight: 600;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    color: #fff;
+    transition: transform .05s ease, opacity .15s ease;
+  }
+  button:active { transform: translateY(1px); }
+  button:disabled { opacity: .35; cursor: not-allowed; }
+  .btn-start { background: var(--green); }
+  .btn-pause { background: var(--amber); }
+  .btn-stop  { background: var(--red); }
+  .btn-ghost {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    flex: 0 0 auto;
+    min-width: auto;
+    padding: 8px 14px;
+    font-size: 13px;
+  }
+  .week-nav { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+  .week-nav h2 { font-size: 17px; margin: 0; flex: 1; text-align: center; }
+  .week-nav .range { color: var(--muted); font-size: 13px; font-weight: 400; display: block; }
+  .week-total {
+    text-align: center;
+    font-size: 14px;
+    color: var(--muted);
+    margin-bottom: 16px;
+  }
+  .week-total b { color: var(--accent); font-size: 22px; font-variant-numeric: tabular-nums; }
+  .day-group { margin-bottom: 18px; }
+  .day-head {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    font-weight: 650;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    padding: 6px 4px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 6px;
+  }
+  .day-head .day-total { color: var(--accent); }
+  .entry {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 10px;
+    align-items: center;
+    padding: 9px 4px;
+    border-bottom: 1px solid rgba(51,65,85,.4);
+  }
+  .entry .desc { font-size: 14px; }
+  .entry .time { color: var(--muted); font-size: 12px; }
+  .entry .dur { font-variant-numeric: tabular-nums; font-size: 14px; font-weight: 600; }
+  .entry .row-btns { display: flex; gap: 6px; }
+  .icon-btn {
+    background: none;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 13px;
+    padding: 2px 6px;
+    flex: 0 0 auto;
+    min-width: auto;
+  }
+  .icon-btn:hover { color: var(--text); }
+  .empty { text-align: center; color: var(--muted); padding: 30px; font-size: 14px; }
+  .export-bar { display: flex; gap: 12px; flex-wrap: wrap; }
+  .export-bar button { flex: 1; }
+  .btn-export { background: var(--accent); color: #06263a; }
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--green);
+    color: #04240f;
+    padding: 12px 20px;
+    border-radius: 10px;
+    font-weight: 600;
+    box-shadow: var(--shadow);
+    opacity: 0;
+    transition: opacity .25s ease;
+    pointer-events: none;
+    z-index: 50;
+  }
+  .toast.show { opacity: 1; }
+  label.field { display: block; font-size: 12px; color: var(--muted); margin: 10px 0 4px; }
+  .modal-back {
+    position: fixed; inset: 0; background: rgba(0,0,0,.6);
+    display: none; align-items: center; justify-content: center; z-index: 40;
+  }
+  .modal-back.show { display: flex; }
+  .modal {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 14px; padding: 22px; width: 92%; max-width: 420px;
+    box-shadow: var(--shadow);
+  }
+  .modal h3 { margin: 0 0 6px; }
+  .modal input {
+    width: 100%; padding: 10px 12px; border-radius: 8px;
+    border: 1px solid var(--border); background: var(--panel-2); color: var(--text);
+  }
+  .modal .btns { margin-top: 18px; }
+  .modal .btn-save { background: var(--green); }
+  .modal .btn-cancel { background: var(--panel-2); border: 1px solid var(--border); }
+  @media (max-width: 560px) {
+    .clock { font-size: 44px; }
+    .entry { grid-template-columns: 1fr auto; }
+    .entry .row-btns { grid-column: 2; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <span style="font-size:22px">🕒</span>
+  <h1>Business Clock</h1>
+  <span class="sub" id="userLabel">Weekly time tracker</span>
+</header>
+
+<div class="wrap">
+  <!-- Timer -->
+  <div class="card">
+    <div class="clock" id="clock">00:00:00</div>
+    <div class="status" id="status">Ready</div>
+    <input type="text" class="task-input" id="taskInput" placeholder="What are you working on? (e.g. Client report, Inventory audit)">
+    <div class="btns">
+      <button class="btn-start" id="startBtn">▶ Start</button>
+      <button class="btn-pause" id="pauseBtn" disabled>⏸ Pause</button>
+      <button class="btn-stop"  id="stopBtn"  disabled>⏹ Stop &amp; Save</button>
+    </div>
+  </div>
+
+  <!-- Week view -->
+  <div class="card">
+    <div class="week-nav">
+      <button class="btn-ghost" id="prevWeek">← Prev</button>
+      <h2 id="weekTitle">This Week <span class="range" id="weekRange"></span></h2>
+      <button class="btn-ghost" id="nextWeek">Next →</button>
+    </div>
+    <div class="week-total">Total this week: <b id="weekTotal">0h 00m</b></div>
+    <div id="entriesList"></div>
+  </div>
+
+  <!-- Export -->
+  <div class="card">
+    <div class="export-bar">
+      <button class="btn-export" id="exportPdf">📄 Print / PDF Report</button>
+      <button class="btn-export" id="exportCsv">📊 Export CSV</button>
+      <button class="btn-ghost" id="addManual" style="flex:0 0 auto">+ Add entry manually</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit modal -->
+<div class="modal-back" id="modalBack">
+  <div class="modal">
+    <h3 id="modalTitle">Edit entry</h3>
+    <label class="field">Task description</label>
+    <input type="text" id="mDesc">
+    <label class="field">Start (date &amp; time)</label>
+    <input type="datetime-local" id="mStart">
+    <label class="field">End (date &amp; time)</label>
+    <input type="datetime-local" id="mEnd">
+    <div class="btns">
+      <button class="btn-cancel" id="mCancel">Cancel</button>
+      <button class="btn-save" id="mSave">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+(function () {
+  const STORAGE_KEY = "businessClock.entries.v1";
+  const NAME_KEY = "businessClock.name";
+
+  // ---------- State ----------
+  let entries = load();          // array of {id, desc, start, end}  (ms epoch)
+  let timer = null;              // {desc, start, pausedMs, pauseStart|null}
+  let viewWeekOffset = 0;        // 0 = current week, -1 = last week, etc.
+  let editingId = null;
+
+  // ---------- DOM ----------
+  const $ = id => document.getElementById(id);
+  const clockEl = $("clock"), statusEl = $("status"), taskInput = $("taskInput");
+  const startBtn = $("startBtn"), pauseBtn = $("pauseBtn"), stopBtn = $("stopBtn");
+
+  // ---------- Persistence ----------
+  function load() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+    catch (e) { return []; }
+  }
+  function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(entries)); }
+
+  // ---------- Time helpers ----------
+  function fmtDuration(ms) {
+    const totalSec = Math.floor(ms / 1000);
+    const h = Math.floor(totalSec / 3600);
+    const m = Math.floor((totalSec % 3600) / 60);
+    const s = totalSec % 60;
+    return String(h).padStart(2,"0") + ":" + String(m).padStart(2,"0") + ":" + String(s).padStart(2,"0");
+  }
+  function fmtHM(ms) {
+    const totalMin = Math.round(ms / 60000);
+    const h = Math.floor(totalMin / 60);
+    const m = totalMin % 60;
+    return h + "h " + String(m).padStart(2,"0") + "m";
+  }
+  function fmtClock(d) {
+    return new Date(d).toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"});
+  }
+  function fmtDayLong(d) {
+    return new Date(d).toLocaleDateString([], {weekday:"long", month:"short", day:"numeric"});
+  }
+  function entryDuration(e) { return Math.max(0, e.end - e.start - (e.pausedMs || 0)); }
+
+  // Monday-based week start for a given date
+  function weekStart(date) {
+    const d = new Date(date);
+    d.setHours(0,0,0,0);
+    const day = (d.getDay() + 6) % 7; // 0 = Monday
+    d.setDate(d.getDate() - day);
+    return d;
+  }
+  function weekStartForOffset(offset) {
+    const ws = weekStart(new Date());
+    ws.setDate(ws.getDate() + offset * 7);
+    return ws;
+  }
+  function isoWeekLabel(date) {
+    // ISO week number
+    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    const dayNum = (d.getUTCDay() + 6) % 7;
+    d.setUTCDate(d.getUTCDate() - dayNum + 3);
+    const firstThursday = new Date(Date.UTC(d.getUTCFullYear(), 0, 4));
+    const week = 1 + Math.round(((d - firstThursday) / 86400000 - 3 + ((firstThursday.getUTCDay() + 6) % 7)) / 7);
+    return { year: d.getUTCFullYear(), week };
+  }
+
+  // ---------- Timer logic ----------
+  function tick() {
+    if (!timer) return;
+    let elapsed = Date.now() - timer.start - timer.pausedMs;
+    if (timer.pauseStart) elapsed -= (Date.now() - timer.pauseStart);
+    clockEl.textContent = fmtDuration(Math.max(0, elapsed));
+  }
+
+  function startTimer() {
+    const desc = taskInput.value.trim();
+    if (!desc) { taskInput.focus(); showToast("Enter what you're working on first", true); return; }
+    timer = { desc, start: Date.now(), pausedMs: 0, pauseStart: null };
+    taskInput.disabled = true;
+    startBtn.disabled = true; pauseBtn.disabled = false; stopBtn.disabled = false;
+    statusEl.textContent = "Recording"; statusEl.className = "status running";
+    clearInterval(window.__tk); window.__tk = setInterval(tick, 250); tick();
+  }
+
+  function togglePause() {
+    if (!timer) return;
+    if (timer.pauseStart) { // resume
+      timer.pausedMs += Date.now() - timer.pauseStart;
+      timer.pauseStart = null;
+      pauseBtn.textContent = "⏸ Pause";
+      statusEl.textContent = "Recording"; statusEl.className = "status running";
+    } else { // pause
+      timer.pauseStart = Date.now();
+      pauseBtn.textContent = "▶ Resume";
+      statusEl.textContent = "Paused"; statusEl.className = "status paused";
+    }
+  }
+
+  function stopTimer() {
+    if (!timer) return;
+    if (timer.pauseStart) { timer.pausedMs += Date.now() - timer.pauseStart; timer.pauseStart = null; }
+    const end = Date.now();
+    const dur = end - timer.start - timer.pausedMs;
+    if (dur < 1000) { showToast("Session too short — discarded", true); resetTimer(); return; }
+    entries.push({ id: genId(), desc: timer.desc, start: timer.start, end, pausedMs: timer.pausedMs });
+    save();
+    resetTimer();
+    viewWeekOffset = 0;
+    render();
+    showToast("Saved: " + fmtHM(dur));
+  }
+
+  function resetTimer() {
+    timer = null;
+    clearInterval(window.__tk);
+    clockEl.textContent = "00:00:00";
+    statusEl.textContent = "Ready"; statusEl.className = "status";
+    taskInput.disabled = false; taskInput.value = "";
+    startBtn.disabled = false; pauseBtn.disabled = true; stopBtn.disabled = true;
+    pauseBtn.textContent = "⏸ Pause";
+  }
+
+  function genId() { return Date.now().toString(36) + Math.floor(Math.random()*1e6).toString(36); }
+
+  // ---------- Rendering ----------
+  function entriesForWeek(offset) {
+    const ws = weekStartForOffset(offset).getTime();
+    const we = ws + 7 * 86400000;
+    return entries.filter(e => e.start >= ws && e.start < we).sort((a,b) => a.start - b.start);
+  }
+
+  function render() {
+    const ws = weekStartForOffset(viewWeekOffset);
+    const we = new Date(ws); we.setDate(we.getDate() + 6);
+    const wk = isoWeekLabel(ws);
+
+    $("weekTitle").childNodes[0].nodeValue =
+      (viewWeekOffset === 0 ? "This Week " : viewWeekOffset === -1 ? "Last Week " : "Week " + wk.week + " ");
+    $("weekRange").textContent =
+      ws.toLocaleDateString([], {month:"short", day:"numeric"}) + " – " +
+      we.toLocaleDateString([], {month:"short", day:"numeric", year:"numeric"}) +
+      "  ·  ISO Week " + wk.week;
+
+    const weekEntries = entriesForWeek(viewWeekOffset);
+    const total = weekEntries.reduce((s,e) => s + entryDuration(e), 0);
+    $("weekTotal").textContent = fmtHM(total);
+
+    const list = $("entriesList");
+    list.innerHTML = "";
+
+    if (weekEntries.length === 0) {
+      list.innerHTML = '<div class="empty">No hours logged this week.<br>Press <b>Start</b> above to begin tracking.</div>';
+      return;
+    }
+
+    // group by day
+    const byDay = {};
+    weekEntries.forEach(e => {
+      const key = new Date(e.start); key.setHours(0,0,0,0);
+      const k = key.getTime();
+      (byDay[k] = byDay[k] || []).push(e);
+    });
+
+    Object.keys(byDay).sort((a,b) => a-b).forEach(k => {
+      const dayEntries = byDay[k];
+      const dayTotal = dayEntries.reduce((s,e) => s + entryDuration(e), 0);
+      const group = document.createElement("div");
+      group.className = "day-group";
+      group.innerHTML = '<div class="day-head"><span>' + fmtDayLong(Number(k)) +
+                        '</span><span class="day-total">' + fmtHM(dayTotal) + '</span></div>';
+      dayEntries.forEach(e => {
+        const row = document.createElement("div");
+        row.className = "entry";
+        const pausedNote = e.pausedMs > 60000 ? ' · paused ' + fmtHM(e.pausedMs) : '';
+        row.innerHTML =
+          '<div><div class="desc">' + escapeHtml(e.desc) + '</div>' +
+          '<div class="time">' + fmtClock(e.start) + ' – ' + fmtClock(e.end) + pausedNote + '</div></div>' +
+          '<div class="dur">' + fmtHM(entryDuration(e)) + '</div>' +
+          '<div class="row-btns">' +
+          '<button class="icon-btn" data-edit="' + e.id + '">✏️</button>' +
+          '<button class="icon-btn" data-del="' + e.id + '">🗑</button></div>';
+        group.appendChild(row);
+      });
+      list.appendChild(group);
+    });
+
+    list.querySelectorAll("[data-del]").forEach(b =>
+      b.onclick = () => { if (confirm("Delete this entry?")) { deleteEntry(b.dataset.del); } });
+    list.querySelectorAll("[data-edit]").forEach(b =>
+      b.onclick = () => openEdit(b.dataset.edit));
+  }
+
+  function escapeHtml(s) {
+    return s.replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  }
+
+  function deleteEntry(id) {
+    entries = entries.filter(e => e.id !== id);
+    save(); render();
+    showToast("Entry deleted");
+  }
+
+  // ---------- Edit / manual add ----------
+  function toLocalInput(ms) {
+    const d = new Date(ms);
+    const off = d.getTimezoneOffset() * 60000;
+    return new Date(ms - off).toISOString().slice(0,16);
+  }
+  function fromLocalInput(v) { return new Date(v).getTime(); }
+
+  function openEdit(id) {
+    editingId = id;
+    const e = entries.find(x => x.id === id);
+    if (!e) return;
+    $("modalTitle").textContent = "Edit entry";
+    $("mDesc").value = e.desc;
+    $("mStart").value = toLocalInput(e.start);
+    $("mEnd").value = toLocalInput(e.end);
+    $("modalBack").classList.add("show");
+  }
+  function openManual() {
+    editingId = null;
+    const now = Date.now();
+    $("modalTitle").textContent = "Add entry manually";
+    $("mDesc").value = "";
+    $("mStart").value = toLocalInput(now - 3600000);
+    $("mEnd").value = toLocalInput(now);
+    $("modalBack").classList.add("show");
+  }
+  function closeModal() { $("modalBack").classList.remove("show"); editingId = null; }
+  function saveModal() {
+    const desc = $("mDesc").value.trim();
+    const start = fromLocalInput($("mStart").value);
+    const end = fromLocalInput($("mEnd").value);
+    if (!desc) { showToast("Enter a description", true); return; }
+    if (!(start && end) || end <= start) { showToast("End must be after start", true); return; }
+    if (editingId) {
+      const e = entries.find(x => x.id === editingId);
+      e.desc = desc; e.start = start; e.end = end; e.pausedMs = e.pausedMs || 0;
+    } else {
+      entries.push({ id: genId(), desc, start, end, pausedMs: 0 });
+      viewWeekOffset = 0;
+    }
+    save(); closeModal(); render();
+    showToast("Saved");
+  }
+
+  // ---------- Exports ----------
+  function csvEscape(s) { return '"' + String(s).replace(/"/g,'""') + '"'; }
+
+  function exportCsv() {
+    const weekEntries = entriesForWeek(viewWeekOffset);
+    if (weekEntries.length === 0) { showToast("Nothing to export this week", true); return; }
+    const ws = weekStartForOffset(viewWeekOffset);
+    const rows = [["Date","Day","Task","Start","End","Paused (min)","Worked (h:m)","Worked (hours)"]];
+    weekEntries.forEach(e => {
+      const dur = entryDuration(e);
+      rows.push([
+        new Date(e.start).toLocaleDateString(),
+        new Date(e.start).toLocaleDateString([], {weekday:"long"}),
+        e.desc,
+        fmtClock(e.start),
+        fmtClock(e.end),
+        Math.round((e.pausedMs||0)/60000),
+        fmtHM(dur),
+        (dur/3600000).toFixed(2)
+      ]);
+    });
+    const total = weekEntries.reduce((s,e)=>s+entryDuration(e),0);
+    rows.push([]);
+    rows.push(["","","","","","TOTAL", fmtHM(total), (total/3600000).toFixed(2)]);
+    const csv = rows.map(r => r.map(csvEscape).join(",")).join("\n");
+    downloadFile(csv, "timesheet-week-" + isoWeekLabel(ws).week + ".csv", "text/csv");
+    showToast("CSV exported");
+  }
+
+  function exportPdf() {
+    const weekEntries = entriesForWeek(viewWeekOffset);
+    if (weekEntries.length === 0) { showToast("Nothing to export this week", true); return; }
+    const ws = weekStartForOffset(viewWeekOffset);
+    const we = new Date(ws); we.setDate(we.getDate()+6);
+    const wk = isoWeekLabel(ws);
+    const name = localStorage.getItem(NAME_KEY) || "";
+
+    const byDay = {};
+    weekEntries.forEach(e => {
+      const key = new Date(e.start); key.setHours(0,0,0,0);
+      (byDay[key.getTime()] = byDay[key.getTime()] || []).push(e);
+    });
+    const total = weekEntries.reduce((s,e)=>s+entryDuration(e),0);
+
+    let body = "";
+    Object.keys(byDay).sort((a,b)=>a-b).forEach(k => {
+      const de = byDay[k];
+      const dt = de.reduce((s,e)=>s+entryDuration(e),0);
+      body += '<tr class="dayrow"><td colspan="3">' + fmtDayLong(Number(k)) +
+              '</td><td class="r">' + fmtHM(dt) + '</td></tr>';
+      de.forEach(e => {
+        body += '<tr><td>' + escapeHtml(e.desc) + '</td><td>' + fmtClock(e.start) +
+                ' – ' + fmtClock(e.end) + '</td><td class="r">' +
+                (e.pausedMs>60000 ? fmtHM(e.pausedMs) : '—') +
+                '</td><td class="r">' + fmtHM(entryDuration(e)) + '</td></tr>';
+      });
+    });
+
+    const html =
+'<!DOCTYPE html><html><head><meta charset="utf-8"><title>Weekly Timesheet</title><style>' +
+'body{font-family:Georgia,serif;color:#1a1a1a;margin:40px;font-size:13px}' +
+'h1{font-size:22px;margin:0 0 2px}.meta{color:#555;margin-bottom:20px;font-size:13px}' +
+'table{width:100%;border-collapse:collapse;margin-top:10px}' +
+'th{text-align:left;border-bottom:2px solid #333;padding:8px 6px;font-size:12px;text-transform:uppercase;letter-spacing:.5px}' +
+'td{padding:7px 6px;border-bottom:1px solid #ddd}.r{text-align:right}' +
+'.dayrow td{background:#f2f2f2;font-weight:bold;border-bottom:1px solid #999}' +
+'.total{font-size:16px;font-weight:bold;margin-top:18px;text-align:right;border-top:2px solid #333;padding-top:12px}' +
+'.foot{margin-top:40px;color:#777;font-size:11px;border-top:1px solid #ccc;padding-top:8px}' +
+'@media print{body{margin:20px}}' +
+'</style></head><body>' +
+'<h1>Weekly Timesheet</h1>' +
+'<div class="meta">' +
+(name ? '<b>' + escapeHtml(name) + '</b><br>' : '') +
+'Week ' + wk.week + ', ' + wk.year + ' &nbsp;·&nbsp; ' +
+ws.toLocaleDateString([], {weekday:"long", month:"long", day:"numeric"}) + ' – ' +
+we.toLocaleDateString([], {weekday:"long", month:"long", day:"numeric", year:"numeric"}) +
+'</div>' +
+'<table><thead><tr><th>Task</th><th>Time</th><th class="r">Paused</th><th class="r">Worked</th></tr></thead>' +
+'<tbody>' + body + '</tbody></table>' +
+'<div class="total">Total hours worked: ' + fmtHM(total) + ' (' + (total/3600000).toFixed(2) + ' h)</div>' +
+'<div class="foot">Generated ' + new Date().toLocaleString() + ' · Business Clock</div>' +
+'</body></html>';
+
+    const w = window.open("", "_blank");
+    if (!w) { showToast("Allow pop-ups to print the report", true); return; }
+    w.document.write(html);
+    w.document.close();
+    w.focus();
+    setTimeout(() => w.print(), 400);
+  }
+
+  function downloadFile(content, filename, type) {
+    const blob = new Blob([content], {type});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  // ---------- Toast ----------
+  let toastTimer;
+  function showToast(msg, isError) {
+    const t = $("toast");
+    t.textContent = msg;
+    t.style.background = isError ? "var(--red)" : "var(--green)";
+    t.style.color = isError ? "#fff" : "#04240f";
+    t.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove("show"), 2200);
+  }
+
+  // ---------- Name prompt ----------
+  function initName() {
+    let name = localStorage.getItem(NAME_KEY);
+    if (name) $("userLabel").textContent = name;
+    $("userLabel").style.cursor = "pointer";
+    $("userLabel").title = "Click to set your name (shown on reports)";
+    $("userLabel").onclick = () => {
+      const n = prompt("Your name (appears on exported reports):", localStorage.getItem(NAME_KEY) || "");
+      if (n !== null) {
+        localStorage.setItem(NAME_KEY, n.trim());
+        $("userLabel").textContent = n.trim() || "Weekly time tracker";
+      }
+    };
+  }
+
+  // ---------- Wire up ----------
+  startBtn.onclick = startTimer;
+  pauseBtn.onclick = togglePause;
+  stopBtn.onclick = stopTimer;
+  $("prevWeek").onclick = () => { viewWeekOffset--; render(); };
+  $("nextWeek").onclick = () => { if (viewWeekOffset < 0) { viewWeekOffset++; render(); } };
+  $("exportCsv").onclick = exportCsv;
+  $("exportPdf").onclick = exportPdf;
+  $("addManual").onclick = openManual;
+  $("mCancel").onclick = closeModal;
+  $("mSave").onclick = saveModal;
+  $("modalBack").onclick = (e) => { if (e.target === $("modalBack")) closeModal(); };
+  taskInput.addEventListener("keydown", e => { if (e.key === "Enter" && !startBtn.disabled) startTimer(); });
+
+  // Warn before closing while recording
+  window.addEventListener("beforeunload", e => {
+    if (timer) { e.preventDefault(); e.returnValue = ""; }
+  });
+
+  initName();
+  render();
+})();
+</script>
+</body>
+</html>
